@@ -158,6 +158,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     }
 
     console.log('Staged upload created:', stagedTarget.url);
+    console.log('Parameters:', JSON.stringify(stagedTarget.parameters, null, 2));
 
     // Step 2: Upload file to staged URL
     const formData = new FormData();
