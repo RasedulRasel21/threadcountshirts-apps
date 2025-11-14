@@ -72,6 +72,53 @@ const upload = multer({
   }
 });
 
+// Helper function to poll for image URL
+async function pollForImageUrl(fileId, maxAttempts = 10, delayMs = 1000) {
+  const query = `
+    query getFile($id: ID!) {
+      node(id: $id) {
+        ... on MediaImage {
+          image {
+            url
+          }
+        }
+      }
+    }
+  `;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`Polling attempt ${attempt}/${maxAttempts}...`);
+
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+
+    try {
+      const response = await axios.post(
+        `https://${SHOPIFY_SHOP}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`,
+        {
+          query: query,
+          variables: { id: fileId }
+        },
+        {
+          headers: {
+            'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+
+      const imageUrl = response.data?.data?.node?.image?.url;
+      if (imageUrl) {
+        console.log('Image URL found:', imageUrl);
+        return imageUrl;
+      }
+    } catch (error) {
+      console.error(`Polling attempt ${attempt} failed:`, error.message);
+    }
+  }
+
+  throw new Error('Timeout waiting for image to be processed by Shopify');
+}
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -244,14 +291,16 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     const createdFile = fileData.files[0];
     console.log('Created file:', JSON.stringify(createdFile, null, 2));
 
-    // Extract the URL based on file type
+    // If image URL is not immediately available, poll for it
     let fileUrl;
     if (createdFile.image && createdFile.image.url) {
-      // MediaImage type
       fileUrl = createdFile.image.url;
     } else if (createdFile.url) {
-      // GenericFile type
       fileUrl = createdFile.url;
+    } else if (createdFile.id && isImage) {
+      // Image is being processed, poll for the URL
+      console.log('Image processing, polling for URL...');
+      fileUrl = await pollForImageUrl(createdFile.id);
     } else {
       console.error('File structure does not contain expected URL field');
       console.error('Available fields:', Object.keys(createdFile));
