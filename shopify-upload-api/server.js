@@ -174,10 +174,23 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     });
 
     console.log('Uploading file to staged URL...');
-    const uploadResponse = await axios.post(stagedTarget.url, formData, {
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity,
-      maxRedirects: 0
+
+    // Upload using form-data's native submit to preserve Google Cloud Storage signature
+    const uploadResponse = await new Promise((resolve, reject) => {
+      formData.submit(stagedTarget.url, (err, res) => {
+        if (err) return reject(err);
+
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve({ status: res.statusCode, data });
+          } else {
+            reject(new Error(`Upload failed with status ${res.statusCode}: ${data}`));
+          }
+        });
+        res.on('error', reject);
+      });
     });
 
     console.log('File uploaded successfully');
