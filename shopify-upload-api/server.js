@@ -231,12 +231,15 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     const fileData = createFileResponse.data.data.fileCreate;
     const fileErrors = fileData.userErrors;
 
+    console.log('File creation response:', JSON.stringify(fileData, null, 2));
+
     if (fileErrors && fileErrors.length > 0) {
       console.error('File creation errors:', fileErrors);
       throw new Error('File creation errors: ' + JSON.stringify(fileErrors));
     }
 
     const createdFile = fileData.files[0];
+    console.log('Created file:', JSON.stringify(createdFile, null, 2));
 
     // Extract the URL based on file type
     let fileUrl;
@@ -245,6 +248,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     } else if (createdFile.image && createdFile.image.url) {
       fileUrl = createdFile.image.url;
     } else {
+      console.error('File structure does not contain expected URL field');
       throw new Error('Could not extract file URL from response');
     }
 
