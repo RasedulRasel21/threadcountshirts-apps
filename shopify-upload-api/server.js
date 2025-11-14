@@ -174,12 +174,10 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     });
 
     console.log('Uploading file to staged URL...');
-    await axios.post(stagedTarget.url, formData, {
-      headers: {
-        ...formData.getHeaders(),
-      },
+    const uploadResponse = await axios.post(stagedTarget.url, formData, {
       maxContentLength: Infinity,
-      maxBodyLength: Infinity
+      maxBodyLength: Infinity,
+      maxRedirects: 0
     });
 
     console.log('File uploaded successfully');
