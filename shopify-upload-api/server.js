@@ -200,10 +200,13 @@ app.post('/upload', upload.single('file'), async (req, res) => {
       }
     `;
 
+    // Determine content type based on mime type
+    const isImage = req.file.mimetype.startsWith('image/');
+
     const createFileVariables = {
       files: [{
         alt: req.file.originalname,
-        contentType: "FILE",
+        contentType: isImage ? "IMAGE" : "FILE",
         originalSource: stagedTarget.resourceUrl
       }]
     };
@@ -243,12 +246,15 @@ app.post('/upload', upload.single('file'), async (req, res) => {
 
     // Extract the URL based on file type
     let fileUrl;
-    if (createdFile.url) {
-      fileUrl = createdFile.url;
-    } else if (createdFile.image && createdFile.image.url) {
+    if (createdFile.image && createdFile.image.url) {
+      // MediaImage type
       fileUrl = createdFile.image.url;
+    } else if (createdFile.url) {
+      // GenericFile type
+      fileUrl = createdFile.url;
     } else {
       console.error('File structure does not contain expected URL field');
+      console.error('Available fields:', Object.keys(createdFile));
       throw new Error('Could not extract file URL from response');
     }
 
